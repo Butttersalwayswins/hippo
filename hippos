@@ -1,0 +1,102 @@
+#include <Servo.h>
+
+// Create servo objects
+Servo s1, s2, s3, s4, s5, s6;
+
+// LED pins
+#define LED_RED 2
+#define LED_GREEN 4
+
+// Flags
+bool servo6Busy = false;
+
+// Command buffer
+String input = "";
+
+void setup() {
+  Serial.begin(9600);
+
+  // Attach servos
+  s1.attach(3);
+  s2.attach(6);
+  s3.attach(5);
+  s4.attach(10);
+  s5.attach(9);
+  s6.attach(11);
+
+  // LED pins
+  pinMode(LED_RED, OUTPUT);
+  pinMode(LED_GREEN, OUTPUT);
+  digitalWrite(LED_GREEN, HIGH);
+  digitalWrite(LED_RED, LOW);
+
+  // Small startup delay so bootloader can work
+  delay(3000);
+}
+
+void loop() {
+  // Read incoming serial
+  while (Serial.available()) {
+    char c = Serial.read();
+    if (c == '\n' || c == '\r') {
+      handleCommand(input);
+      input = "";
+    } else {
+      input += c;
+    }
+  }
+}
+
+void handleCommand(String cmd) {
+  cmd.trim();
+
+  if (cmd == "s6") {
+    moveServo6();
+  }
+
+  if (servo6Busy) return;
+
+  if (cmd == "s1go") moveQuick(s1);
+  else if (cmd == "s2go") moveQuick(s2);
+  else if (cmd == "s3go") moveQuick(s3);
+  else if (cmd == "s4go") moveQuick(s4);
+}
+
+void moveQuick(Servo& servo) {
+  digitalWrite(LED_GREEN, LOW);
+  digitalWrite(LED_RED, HIGH);
+
+  servo.write(90);
+  delay(500);
+  servo.write(0);
+
+  digitalWrite(LED_RED, LOW);
+  digitalWrite(LED_GREEN, HIGH);
+}
+
+void moveServo6() {
+  if (servo6Busy) return;
+  servo6Busy = true;
+
+  digitalWrite(LED_GREEN, LOW);
+  digitalWrite(LED_RED, HIGH);
+
+  // Move from 180 to 75 over 7 seconds
+  for (int pos = 180; pos >= 75; pos--) {
+    s6.write(pos);
+    delay(54); // ~7000ms over 105 steps
+  }
+
+  delay(300);
+
+  // Move back from 85 to 180 over 7 seconds
+  for (int pos = 85; pos <= 180; pos++) {
+    s6.write(pos);
+    delay(65); // ~7000ms over 95 steps
+  }
+
+  digitalWrite(LED_RED, LOW);
+  digitalWrite(LED_GREEN, HIGH);
+
+  servo6Busy = false;
+}
