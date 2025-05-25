@@ -1,0 +1,42 @@
+[
+  {
+    "label": "default panel",
+    "button_panels": [
+      {
+        "label": "default buttons panel",
+        "buttons": [
+          {
+            "label": "HIPPO1",
+            "price": 0,
+            "command": "s1go\n",
+            "keycode": 37
+          },
+          {
+            "label": "HIPPO2",
+            "price": 0,
+            "command": "s2go\n",
+            "keycode": 39
+          },
+          {
+            "label": "HIPPO3",
+            "price": 0,
+            "command": "s3go\n",
+            "keycode": 38
+          },
+          {
+            "label": "HIPPO4",
+            "price": 0,
+            "command": "s4go\n",
+            "keycode": 40
+          },
+          {
+            "label": "Reset",
+            "price": 0,
+            "command": "s6\n",
+            "keycode": 41
+          }
+        ]
+      }
+    ]
+  }
+]
