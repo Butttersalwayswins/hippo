@@ -1,0 +1,66 @@
+import time
+import serial
+
+# Global serial object
+ser = None
+
+# Store last execution time per command
+last_command_time = {}
+
+# Cooldown settings (in seconds)
+command_cooldowns = {
+    "s1go": 0.7,
+    "s2go": 0.7,
+    "s3go": 0.7,
+    "s4go": 0.7,
+    "s6": 30.0
+}
+
+def init(port, baudrate=9600):
+    """
+    Initialize the serial port.
+    """
+    global ser
+    try:
+        ser = serial.Serial(port, baudrate, timeout=1)
+        print(f"[SERIAL] Connected to {port} at {baudrate} baud")
+    except Exception as e:
+        print(f"[SERIAL] Failed to connect: {e}")
+        ser = None
+
+def handleCommand(cmd, key_position, command_price=0):
+    """
+    Process incoming commands with cooldowns.
+    """
+    global last_command_time
+
+    if key_position != 'down':
+        return  # Ignore anything except key press
+
+    now = time.time()
+    cooldown = command_cooldowns.get(cmd, 0.5)  # Default cooldown
+
+    last_time = last_command_time.get(cmd, 0)
+    if now - last_time < cooldown:
+        print(f"[SERIAL] Ignored '{cmd}' (cooldown {cooldown}s, waited {now - last_time:.2f}s)")
+        return
+
+    last_command_time[cmd] = now
+
+    if ser:
+        try:
+            ser.write((cmd + '\n').encode())
+            print(f"[SERIAL] Sent: {cmd}")
+        except Exception as e:
+            print(f"[SERIAL] Error sending '{cmd}': {e}")
+    else:
+        print(f"[SERIAL] No serial connection. Could not send: {cmd}")
+
+def close():
+    """
+    Close the serial connection if open.
+    """
+    global ser
+    if ser and ser.is_open:
+        ser.close()
+        print("[SERIAL] Serial connection closed")
