@@ -1,94 +1,106 @@
-import websocket
+import asyncio
+import websockets
 import json
-import argparse
-import threading
 import time
-import serial_interface
-import ssl
-import requests
+import datetime
+import traceback
+import argparse
+import _thread
 
-# Global WebSocket
-ws = None
+import robot_util
+import serial_interface as interface
+
+# Global control websocket
+currentWebsocket = {'control': None}
+lastPongTime = {'control': datetime.datetime.now()}
 
 # Parse command-line arguments
 parser = argparse.ArgumentParser()
-parser.add_argument("--robot-id", required=True, type=int)
-parser.add_argument("--stream-key", required=True, type=str)
-parser.add_argument("--serial-port", required=True, type=str)
-parser.add_argument("--baudrate", required=False, type=int, default=9600)
+parser.add_argument("--robot-id", required=True)
+parser.add_argument("--stream-key", required=True)
+parser.add_argument("--serial-port", required=True)
+parser.add_argument("--baudrate", type=int, default=9600)
 parser.add_argument("--secure-cert", action="store_true")
-args = parser.parse_args()
-
-# Get WebSocket connection info from RobotStreamer
-print("[API] Requesting control service info...")
-try:
-    res = requests.get("https://api.robotstreamer.com/v1/get_service/rscontrol")
-    ws_info = res.json()
-    print("[API] get_service response:", ws_info)
-except Exception as e:
-    print(f"[API] Failed to fetch service info: {e}")
-    exit(1)
-
-# Build WebSocket URL
-ws_url = f"wss://{ws_info['host']}:{ws_info['port']}?robot_id={args.robot_id}&key={args.stream_key}"
-print("[WS] Connecting to", ws_url)
+commandArgs = parser.parse_args()
 
 # Initialize serial port
-serial_interface.init(port=args.serial_port, baudrate=args.baudrate)
+interface.init(port=commandArgs.serial_port, baudrate=commandArgs.baudrate)
 
-def on_message(ws, message):
-    print(f"[WS] Message received: {message}")
-    try:
-        data = json.loads(message)
-        if data.get("type") == "command":
-            cmd = data.get("command")
-            key_pos = data.get("key_position", "down")
-            print(f"[WS] Command received: {cmd}, key_position: {key_pos}")
-            serial_interface.handleCommand(cmd, key_pos)
+def getControlHost():
+    apiHost = "https://api.robotstreamer.com"
+
+    url = apiHost + '/v1/get_service/rscontrol'
+    response = robot_util.getNoRetry(url, secure=commandArgs.secure_cert)
+    response = json.loads(response)
+    print("response:", response)
+
+    if response is not None:
+        response['protocol'] = 'wss'
+        print("get_service response:", response)
+
+    if response is None:
+        url = apiHost + '/v1/get_endpoint/rscontrol_robot/' + commandArgs.robot_id
+        response = robot_util.getNoRetry(url, secure=commandArgs.secure_cert)
+        response = json.loads(response)
+
+        if response is not None:
+            response['protocol'] = 'ws'
+            print("get_endpoint response:", response)
+
+    return response
+
+async def handleControlMessages():
+    h = getControlHost()
+    url = '%s://%s:%s/echo' % (h['protocol'], h['host'], h['port'])
+    print("CONTROL url:", url)
+
+    async with websockets.connect(url) as websocket:
+        print("CONTROL: control websocket object:", websocket)
+
+        if h['protocol'] == 'wss':
+            await websocket.send(json.dumps({
+                "type": "robot_connect",
+                "robot_id": commandArgs.robot_id,
+                "stream_key": commandArgs.stream_key
+            }))
         else:
-            print(f"[WS] Ignored message type: {data.get('type')}")
-    except Exception as e:
-        print(f"[WS] Error parsing message: {e}")
+            await websocket.send(json.dumps({"command": commandArgs.stream_key}))
 
-def on_error(ws, error):
-    print(f"[WS] Error: {error}")
+        currentWebsocket['control'] = websocket
 
-def on_close(ws, close_status_code, close_msg):
-    print(f"[WS] Closed: {close_status_code}, {close_msg}")
+        while True:
+            print("CONTROL: awaiting control message")
+            message = await websocket.recv()
+            j = json.loads(message)
+            print("CONTROL message: ", j)
 
-def on_open(ws):
-    print("[WS] WebSocket connection opened")
-    auth_msg = json.dumps({
-        "type": "connect",
-        "robot_id": str(args.robot_id),
-        "key": args.stream_key
-    })
-    ws.send(auth_msg)
-    print("[WS] Sent auth")
+            if j.get('command') == "RS_PONG":
+                lastPongTime['control'] = datetime.datetime.now()
 
-def run():
-    global ws
-    ws = websocket.WebSocketApp(
-        ws_url,
-        on_message=on_message,
-        on_error=on_error,
-        on_close=on_close,
-        on_open=on_open
-    )
+            if j.get('type') == "RS_PING":
+                lastPongTime['control'] = datetime.datetime.now()
 
-    sslopt = {"cert_reqs": ssl.CERT_REQUIRED} if args.secure_cert else {"cert_reqs": ssl.CERT_NONE}
+            elif j.get('command') and j.get('key_position'):
+                _thread.start_new_thread(interface.handleCommand, (
+                    j["command"],
+                    j["key_position"],
+                    j.get('command_price', 0)
+                ))
+
+def startControl():
+    print("CONTROL: waiting a few seconds")
+    time.sleep(6)
 
     while True:
+        print("CONTROL: starting control loop")
         try:
-            ws.run_forever(sslopt=sslopt)
-        except KeyboardInterrupt:
-            print("Exiting...")
-            serial_interface.close()
-            break
-        except Exception as e:
-            print(f"[WS] Connection error: {e}")
-            print("Reconnecting in 5 seconds...")
-            time.sleep(5)
+            asyncio.new_event_loop().run_until_complete(handleControlMessages())
+        except:
+            print("CONTROL: error")
+            traceback.print_exc()
+        print("CONTROL: event handler died")
+        time.sleep(2)
+        interface.movementSystemActive = False
 
-if __name__ == "__main__":
-    run()
+if __name__ == '__main__':
+    startControl()
