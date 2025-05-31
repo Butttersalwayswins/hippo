@@ -1,0 +1,70 @@
+You will need 3 TIP29C transistors — one for each color channel (Red, Green, Blue) of the RGB strip.
+
+Each TIP29C controls current to one color line of the strip.
+
+TIP29C Pinout (Looking at flat side, legs down):
+DO NOT BOLT TRANSISTORS TO METAL INLESS METAL IS ISOLATED FROM EACH OTHER TIP29C IS NPN MEANING NEG/POWER/NEG
+IF NOT ISOLATED THAN BOLT TO A NON CONDUCTED MATERIAL. 
+       _______
+      |       |
+      | TIP29C|
+      |_______|
+      | B C E |
+        1 2 3
+
+B = Base
+C = Collector
+E = Emitter
+
+Wiring for One Color Channel (e.g. Red on D2)
+Arduino Pin	Connect To
+D2	TIP29C Base through a 1KΩ resistor
+TIP29C Collector	Red wire of LED strip
+TIP29C Emitter	GND (Arduino GND and LED power GND must be shared)
+LED Strip +5V	5V Power Supply (Not Arduino 5V pin if strip is high current)
+
+Repeat same for:
+D4 → Green channel
+D7 → Blue channel
+
+Power Notes
+DO NOT power the LED strip directly from the Arduino 5V pin — use a separate 5V power source if your strip draws more than 500mA.
+
+Connect the GND of the 5V power source to Arduino GND, or the LEDs won’t switch properly.
+
+Full Example for Red Channel
+Arduino D2 → 1KΩ resistor → TIP29C Base
+TIP29C Collector → Red wire of RGB LED strip
+TIP29C Emitter → GND
+
++5V power supply → +5V of LED strip
+
+Powersupply GND → LED GND & Arduino GND
+
+Quick Diagram (Text Form)
+
+          Arduino D2
+             |
+          [1KΩ Resistor]
+             |
+           Base
+           |
+     +-----+------+
+     |            |
+  Collector     Emitter
+     |            |
+     |        Arduino GND
+     |
+  Red wire of LED strip
+     |
+   +5V → 5V Power Supply
+
+
+D2 (Red)	→ 1KΩ resistor → Base of TIP29C #1 → Collector to Red LED wire
+D4 (Green)	→ 1KΩ resistor → Base of TIP29C #2 → Collector to Green LED wire
+D7 (Blue)	→ 1KΩ resistor → Base of TIP29C #3 → Collector to Blue LED wire
+Emitters	All go to GND
+LED Strip +5V	Connects to 5V power supply (not Arduino!)
+Power GND	Shared between LED strip, power supply, and Arduino GND.
+
+
