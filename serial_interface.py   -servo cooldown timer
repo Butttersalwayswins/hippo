@@ -13,7 +13,7 @@ command_cooldowns = {
     "s2go": 0.7,
     "s3go": 0.7,
     "s4go": 0.7,
-    "s6": 30.0
+    "s6": 60.0
 }
 
 def init(port, baudrate=9600):
@@ -28,14 +28,14 @@ def init(port, baudrate=9600):
         print(f"[SERIAL] Failed to connect: {e}")
         ser = None
 
-def handleCommand(cmd, key_position, command_price=0):
+def handleCommand(cmd, key_position=None, command_price=0):
     """
     Process incoming commands with cooldowns.
     """
     global last_command_time
 
-    if key_position != 'down':
-        return  # Ignore anything except key press
+    # Normalize and trim the command
+    cmd = cmd.strip().lower()
 
     now = time.time()
     cooldown = command_cooldowns.get(cmd, 0.5)  # Default cooldown
