@@ -1,10 +1,11 @@
+DO NOT BOLT TRANSISTORS TO METAL INLESS METAL IS ISOLATED FROM EACH OTHER TIP29C IS NPN MEANING NEG/POWER/NEG
+IF NOT ISOLATED THAN BOLT TO A NON CONDUCTED MATERIAL.
+
 You will need 3 TIP29C transistors — one for each color channel (Red, Green, Blue) of the RGB strip.
 
 Each TIP29C controls current to one color line of the strip.
 
 TIP29C Pinout (Looking at flat side, legs down):
-DO NOT BOLT TRANSISTORS TO METAL INLESS METAL IS ISOLATED FROM EACH OTHER TIP29C IS NPN MEANING NEG/POWER/NEG
-IF NOT ISOLATED THAN BOLT TO A NON CONDUCTED MATERIAL. 
        _______
       |       |
       | TIP29C|
